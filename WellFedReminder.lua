@@ -1,7 +1,8 @@
 --[[
-    Well Fed Reminder 1.0.0
+    Well Fed Reminder 1.1.0
     Flashes a food icon whenever you don't have the Well Fed buff, shows a countdown while
-    you eat, and warns you before Well Fed runs out so you can top it up.
+    you eat, and warns you before Well Fed runs out so you can top it up. It stays hidden
+    in cities and inns.
 
     Built for WoW: Forever, which runs the modern (Midnight 12.x) addon API including its
     combat restrictions: while you're in combat, aura data is hidden from addons. So the
@@ -40,6 +41,7 @@ local DEFAULTS = {
     warnSeconds   = 120,
     showInCombat  = false,
     instancesOnly = false,
+    hideInCities  = true,       -- cities and inns: anywhere the game counts as resting
     sound         = true,
     buffNames     = { "Well Fed" },
 }
@@ -259,6 +261,7 @@ local function ComputeState(now)
     if not db.locked then return "unlocked" end
     if not db.enabled then return nil end
     if IsTrue(UnitIsDeadOrGhost, "player") or IsTrue(UnitOnTaxi, "player") then return nil end
+    if db.hideInCities and IsTrue(IsResting) then return nil end    -- in a city or inn, fed or not
     if db.instancesOnly and not IsTrue(IsInInstance) then return nil end
 
     local restricted = AurasRestricted()
@@ -482,6 +485,7 @@ local function ShowHelp()
         string.format("  scale <0.5-3> - icon size (now %.2f)", db.scale),
         "  combat - keep showing during combat (now " .. OnOff(db.showInCombat) .. ")",
         "  instance - only remind inside dungeons and raids (now " .. OnOff(db.instancesOnly) .. ")",
+        "  city - hide in cities and inns, fed or not (now " .. OnOff(db.hideInCities) .. ")",
         "  sound - alert sound when Well Fed drops (now " .. OnOff(db.sound) .. ")",
         "  add <buff name> / remove <buff name> / list - which buffs count as fed",
         "  on / off - turn the reminder on or off (now " .. OnOff(db.enabled) .. ")",
@@ -506,6 +510,9 @@ local function PrintStatus()
         end
     else
         Print("Well Fed: missing")
+    end
+    if db.hideInCities and IsTrue(IsResting) then
+        Print("hidden while you're in a city or inn - /wellfed city to change that")
     end
     if AurasRestricted() then
         Print(string.format("buff data is locked right now (combat); last reading %ds ago",
@@ -557,6 +564,9 @@ local function HandleSlash(msg)
     elseif cmd == "instance" or cmd == "instances" then
         db.instancesOnly = not db.instancesOnly
         Print("only in dungeons and raids: " .. OnOff(db.instancesOnly))
+    elseif cmd == "city" or cmd == "cities" then
+        db.hideInCities = not db.hideInCities
+        Print("hide in cities and inns: " .. OnOff(db.hideInCities))
     elseif cmd == "sound" then
         db.sound = not db.sound
         Print("alert sound: " .. OnOff(db.sound))
@@ -623,6 +633,7 @@ SlashCmdList.WELLFEDREMINDER = HandleSlash
 local RUNTIME_EVENTS = {
     "PLAYER_ENTERING_WORLD", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED",
     "PLAYER_DEAD", "PLAYER_ALIVE", "PLAYER_UNGHOST", "ZONE_CHANGED_NEW_AREA",
+    "PLAYER_UPDATE_RESTING",                     -- entering or leaving a city or inn
     "ADDON_RESTRICTION_STATE_CHANGED",           -- Midnight-era clients only
 }
 
