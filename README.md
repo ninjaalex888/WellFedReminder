@@ -10,6 +10,7 @@ A lightweight addon for **WoW Forever** that flashes a food icon whenever you're
 | Running out | A pulsing yellow border counting down the last 2:00 (change it with `/wellfed warn`) |
 | Well Fed | Nothing |
 | In a city or inn | Nothing, fed or not (`/wellfed city` turns this off) |
+| Below level 6 | Nothing, fed or not (`/wellfed level` changes the level) |
 
 The icon also stays out of the way while you're dead or on a flight path, and in combat by default.
 
@@ -40,6 +41,7 @@ Type `/wellfed` or `/wfr` on its own to list these in game, along with your curr
 | `/wellfed combat` | Keep showing in combat, counting down from the last reading (off by default) |
 | `/wellfed instance` | Only remind inside dungeons and raids (off by default) |
 | `/wellfed city` | Hide in cities and inns, fed or not (on by default) |
+| `/wellfed level <number>` | Stay hidden until this level (default 6, `1` shows it at every level) |
 | `/wellfed sound` | Alert sound when Well Fed drops (on by default) |
 | `/wellfed add <buff name>`, `remove <buff name>`, `list` | Which buffs count as being fed |
 | `/wellfed on`, `/wellfed off` | Turn the reminder on or off |

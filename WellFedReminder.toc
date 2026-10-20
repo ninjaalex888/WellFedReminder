@@ -2,7 +2,7 @@
 ## Title: Well Fed Reminder
 ## Notes: Flashes a food icon when you don't have Well Fed, and counts down before it runs out. /wellfed for options.
 ## Author: Lex
-## Version: 1.1.0
+## Version: 1.2.0
 ## SavedVariables: WellFedReminderDB
 ## IconTexture: Interface\Icons\Spell_Misc_Food
 

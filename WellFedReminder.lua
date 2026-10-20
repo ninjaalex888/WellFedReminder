@@ -1,8 +1,8 @@
 --[[
-    Well Fed Reminder 1.1.0
+    Well Fed Reminder 1.2.0
     Flashes a food icon whenever you don't have the Well Fed buff, shows a countdown while
     you eat, and warns you before Well Fed runs out so you can top it up. It stays hidden
-    in cities and inns.
+    in cities and inns, and until you reach level 6.
 
     Built for WoW: Forever, which runs the modern (Midnight 12.x) addon API including its
     combat restrictions: while you're in combat, aura data is hidden from addons. So the
@@ -42,6 +42,7 @@ local DEFAULTS = {
     showInCombat  = false,
     instancesOnly = false,
     hideInCities  = true,       -- cities and inns: anywhere the game counts as resting
+    minLevel      = 6,          -- stay hidden below this level (1 = every level)
     sound         = true,
     buffNames     = { "Well Fed" },
 }
@@ -133,6 +134,12 @@ local function IsTrue(fn, ...)          -- true only for a plain, truthy result 
     local ok, result = pcall(fn, ...)
     if not ok or IsSecret(result) then return false end
     return result and true or false
+end
+
+local function PlayerLevel()            -- the player's level, or nil if it can't be read
+    local ok, level = pcall(UnitLevel, "player")
+    if ok and not IsSecret(level) and type(level) == "number" then return level end
+    return nil
 end
 
 ----------------------------------------------------------------------------------------
@@ -262,6 +269,8 @@ local function ComputeState(now)
     if not db.enabled then return nil end
     if IsTrue(UnitIsDeadOrGhost, "player") or IsTrue(UnitOnTaxi, "player") then return nil end
     if db.hideInCities and IsTrue(IsResting) then return nil end    -- in a city or inn, fed or not
+    local level = PlayerLevel()
+    if level and level < db.minLevel then return nil end            -- not the minimum level yet
     if db.instancesOnly and not IsTrue(IsInInstance) then return nil end
 
     local restricted = AurasRestricted()
@@ -486,6 +495,7 @@ local function ShowHelp()
         "  combat - keep showing during combat (now " .. OnOff(db.showInCombat) .. ")",
         "  instance - only remind inside dungeons and raids (now " .. OnOff(db.instancesOnly) .. ")",
         "  city - hide in cities and inns, fed or not (now " .. OnOff(db.hideInCities) .. ")",
+        string.format("  level <number> - stay hidden until this level, 1 = every level (now %d)", db.minLevel),
         "  sound - alert sound when Well Fed drops (now " .. OnOff(db.sound) .. ")",
         "  add <buff name> / remove <buff name> / list - which buffs count as fed",
         "  on / off - turn the reminder on or off (now " .. OnOff(db.enabled) .. ")",
@@ -513,6 +523,10 @@ local function PrintStatus()
     end
     if db.hideInCities and IsTrue(IsResting) then
         Print("hidden while you're in a city or inn - /wellfed city to change that")
+    end
+    local level = PlayerLevel()
+    if level and level < db.minLevel then
+        Print(string.format("hidden until level %d (you're %d) - /wellfed level to change that", db.minLevel, level))
     end
     if AurasRestricted() then
         Print(string.format("buff data is locked right now (combat); last reading %ds ago",
@@ -567,6 +581,18 @@ local function HandleSlash(msg)
     elseif cmd == "city" or cmd == "cities" then
         db.hideInCities = not db.hideInCities
         Print("hide in cities and inns: " .. OnOff(db.hideInCities))
+    elseif cmd == "level" then
+        local n = tonumber(rest)
+        if n and n >= 0 and n <= 100 then
+            db.minLevel = math.floor(n)
+            if db.minLevel <= 1 then
+                Print("showing at every level")
+            else
+                Print("hidden until level " .. db.minLevel)
+            end
+        else
+            Print("usage: /wellfed level <number>   (1 shows it at every level)")
+        end
     elseif cmd == "sound" then
         db.sound = not db.sound
         Print("alert sound: " .. OnOff(db.sound))
@@ -634,6 +660,7 @@ local RUNTIME_EVENTS = {
     "PLAYER_ENTERING_WORLD", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED",
     "PLAYER_DEAD", "PLAYER_ALIVE", "PLAYER_UNGHOST", "ZONE_CHANGED_NEW_AREA",
     "PLAYER_UPDATE_RESTING",                     -- entering or leaving a city or inn
+    "PLAYER_LEVEL_UP",
     "ADDON_RESTRICTION_STATE_CHANGED",           -- Midnight-era clients only
 }
 
@@ -649,6 +676,7 @@ local function Sanitize()
     if type(db.point) ~= "table" then db.point = CopyDefaults(DEFAULTS.point, {}) end
     if type(db.scale) ~= "number" or db.scale < 0.5 or db.scale > 3 then db.scale = 1 end
     if type(db.warnSeconds) ~= "number" or db.warnSeconds < 0 then db.warnSeconds = DEFAULTS.warnSeconds end
+    if type(db.minLevel) ~= "number" or db.minLevel < 0 then db.minLevel = DEFAULTS.minLevel end
 end
 
 local events = CreateFrame("Frame")
